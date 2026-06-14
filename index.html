@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard RRHH</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface2: #f0efe9;
+    --border: rgba(0,0,0,0.09);
+    --border-md: rgba(0,0,0,0.15);
+    --text: #1a1917;
+    --text2: #6b6a65;
+    --text3: #9e9d98;
+    --accent: #2d5be3;
+    --accent-light: #e8edfc;
+    --green: #1a8a5a;
+    --green-light: #e3f5ec;
+    --amber: #b06000;
+    --amber-light: #fef3e2;
+    --red: #c0392b;
+    --red-light: #fdecea;
+    --purple: #5a3fb5;
+    --purple-light: #eeebfb;
+    --radius: 12px;
+    --radius-sm: 7px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; min-height: 100vh; }
+
+  /* Layout */
+  .app { display: flex; min-height: 100vh; }
+  .sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); padding: 0; flex-shrink: 0; display: flex; flex-direction: column; }
+  .main { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
+  .content { padding: 28px; overflow-y: auto; flex: 1; }
+
+  /* Sidebar */
+  .sidebar-brand { padding: 22px 20px 18px; border-bottom: 1px solid var(--border); }
+  .brand-label { font-size: 11px; font-weight: 600; letter-spacing: .08em; color: var(--text3); text-transform: uppercase; }
+  .brand-name { font-size: 16px; font-weight: 700; color: var(--text); margin-top: 2px; }
+  .sidebar-nav { padding: 12px 10px; flex: 1; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--radius-sm); cursor: pointer; color: var(--text2); font-size: 13px; font-weight: 500; transition: background .15s, color .15s; margin-bottom: 2px; border: none; background: none; width: 100%; text-align: left; }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--accent-light); color: var(--accent); }
+  .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .sidebar-footer { padding: 16px 20px; border-top: 1px solid var(--border); }
+  .sync-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; margin-right: 5px; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.3} }
+  .sync-label { font-size: 11px; color: var(--text3); }
+
+  /* Topbar */
+  .page-title { font-size: 17px; font-weight: 700; color: var(--text); }
+  .topbar-right { display: flex; gap: 10px; align-items: center; }
+  .btn { padding: 7px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-md); background: var(--surface); color: var(--text); font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background .15s; font-family: inherit; }
+  .btn:hover { background: var(--surface2); }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-primary:hover { background: #1e47c8; }
+
+  /* Metric cards */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 24px; }
+  .metric { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
+  .metric-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 8px; }
+  .metric-value { font-size: 28px; font-weight: 800; color: var(--text); line-height: 1; }
+  .metric-sub { font-size: 12px; color: var(--text3); margin-top: 4px; }
+  .metric-accent { border-top: 3px solid var(--accent); }
+  .metric-green { border-top: 3px solid var(--green); }
+  .metric-amber { border-top: 3px solid #e09000; }
+  .metric-purple { border-top: 3px solid var(--purple); }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-bottom: 18px; }
+  .card-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .card-title svg { width: 15px; height: 15px; color: var(--text3); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+
+  /* Badges */
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 5px; }
+  .b-green { background: var(--green-light); color: var(--green); }
+  .b-amber { background: var(--amber-light); color: var(--amber); }
+  .b-red { background: var(--red-light); color: var(--red); }
+  .b-blue { background: var(--accent-light); color: var(--accent); }
+  .b-purple { background: var(--purple-light); color: var(--purple); }
+  .b-gray { background: var(--surface2); color: var(--text2); }
+
+  /* Tabs (sections) */
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* Bar rows */
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 12px; }
+  .bar-label { width: 110px; color: var(--text2); flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { flex: 1; background: var(--surface2); border-radius: 4px; height: 10px; overflow: hidden; }
+  .bar-fill { height: 10px; border-radius: 4px; background: var(--accent); }
+  .bar-val { width: 36px; text-align: right; color: var(--text2); font-weight: 600; }
+
+  /* Employee grid */
+  .emp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+  .emp-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; cursor: pointer; transition: border-color .15s, transform .1s; }
+  .emp-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--accent-light); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--accent); flex-shrink: 0; }
+  .score-bar-wrap { height: 5px; background: var(--surface2); border-radius: 3px; margin: 10px 0 6px; overflow: hidden; }
+  .score-bar { height: 5px; border-radius: 3px; }
+
+  /* Filters */
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; align-items: center; }
+  .filters select, .filters input { padding: 7px 10px; border: 1px solid var(--border-md); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: 12px; font-family: inherit; cursor: pointer; }
+  .filters input { flex: 1; min-width: 160px; }
+
+  /* Modal */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 100; align-items: center; justify-content: center; }
+  .modal-bg.open { display: flex; }
+  .modal { background: var(--surface); border-radius: var(--radius); padding: 28px; max-width: 560px; width: 90%; max-height: 85vh; overflow-y: auto; }
+  .modal-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+  .modal-avatar { width: 50px; height: 50px; border-radius: 50%; background: var(--accent-light); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: var(--accent); }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+  .detail-item { background: var(--surface2); border-radius: var(--radius-sm); padding: 10px 14px; }
+  .detail-label { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 4px; }
+  .detail-value { font-size: 14px; font-weight: 600; color: var(--text); }
+  .feeling-box { background: var(--surface2); border-radius: 0; border-left: 3px solid var(--accent); padding: 12px 14px; font-size: 13px; color: var(--text2); font-style: italic; margin: 12px 0; }
+  .gemini-box { background: var(--purple-light); border-radius: var(--radius-sm); padding: 14px; margin-top: 12px; }
+  .gemini-title { font-size: 11px; font-weight: 700; color: var(--purple); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 6px; }
+  .gemini-text { font-size: 13px; color: #3a2880; line-height: 1.6; }
+
+  /* Ranking */
+  .rank-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .rank-row:last-child { border-bottom: none; }
+  .rank-num { width: 22px; font-weight: 800; color: var(--text3); font-size: 12px; }
+  .rank-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent-light); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--accent); flex-shrink: 0; }
+
+  /* Feelings */
+  .feeling-row { padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .feeling-row:last-child { border-bottom: none; }
+  .feeling-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; flex-wrap: wrap; }
+
+  /* Config panel */
+  .config-panel { background: var(--surface); border-bottom: 1px solid var(--border); padding: 18px 28px; display: none; }
+  .config-panel.open { display: block; }
+  .config-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+  .url-input { flex: 1; min-width: 0; padding: 8px 12px; border: 1px solid var(--border-md); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); font-size: 12px; font-family: monospace; }
+  .err-msg { font-size: 12px; color: var(--red); margin-top: 6px; display: none; }
+  .hint-msg { font-size: 11px; color: var(--text3); margin-top: 6px; }
+
+  /* Edu rows */
+  .edu-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .edu-row:last-child { border-bottom: none; }
+
+  /* Chart legend */
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 10px; font-size: 12px; color: var(--text2); }
+  .legend span { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-label">Panel de control</div>
+      <div class="brand-name">RRHH</div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" onclick="showTab('resumen',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Resumen general
+      </button>
+      <button class="nav-item" onclick="showTab('empleados',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>
+        Empleados
+      </button>
+      <button class="nav-item" onclick="showTab('capacitacion',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        Capacitación
+      </button>
+      <button class="nav-item" onclick="showTab('software',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        Adopción del sistema
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div><span class="sync-dot"></span><span class="sync-label" id="sync-lbl">Conectando...</span></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="page-title" id="page-title">Resumen general</div>
+      <div class="topbar-right">
+        <button class="btn" onclick="toggleConfig()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+          Conectar Google Sheets
+        </button>
+        <button class="btn btn-primary" onclick="loadDemo()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          Cargar datos demo
+        </button>
+      </div>
+    </div>
+
+    <!-- CONFIG PANEL -->
+    <div class="config-panel" id="cfg">
+      <div style="font-size:13px; font-weight:600; color:var(--text); margin-bottom:4px;">Conectar con Google Sheets</div>
+      <div style="font-size:12px; color:var(--text2);">
+        La hoja debe estar publicada como CSV. En Google Sheets: <strong>Archivo → Compartir → Publicar en la web → seleccionar la hoja → formato CSV → Publicar</strong>. Copiá la URL que te da.
+      </div>
+      <div class="config-row">
+        <input class="url-input" id="sheet-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?gid=0&single=true&output=csv" />
+        <button class="btn btn-primary" onclick="connectSheet()">Conectar</button>
+      </div>
+      <div class="hint-msg">Columnas esperadas: Nombre, Antigüedad, Área, Nivel educativo, Capacitaciones, Desempeño, Adaptación, Sentimiento, Recomendación Gemini</div>
+      <div class="err-msg" id="url-err">No se pudo cargar la hoja. Verificá que la URL sea la de publicación CSV y que la hoja esté publicada.</div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+      <!-- RESUMEN -->
+      <div id="tab-resumen" class="section active">
+        <div class="metrics">
+          <div class="metric metric-accent">
+            <div class="metric-label">Total empleados</div>
+            <div class="metric-value" id="m-total">—</div>
+          </div>
+          <div class="metric metric-green">
+            <div class="metric-label">Desempeño prom.</div>
+            <div class="metric-value" id="m-desemp">—</div>
+            <div class="metric-sub">sobre 10</div>
+          </div>
+          <div class="metric metric-amber">
+            <div class="metric-label">Capacitaciones prom.</div>
+            <div class="metric-value" id="m-cap">—</div>
+            <div class="metric-sub">por persona</div>
+          </div>
+          <div class="metric metric-purple">
+            <div class="metric-label">Adaptación prom.</div>
+            <div class="metric-value" id="m-adap">—</div>
+            <div class="metric-sub">al nuevo sistema</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+              Distribución por área
+            </div>
+            <div id="area-bars"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M18 8v8M14 6v10M10 4v16M6 2v20M2 14v6"/></svg>
+              Nivel educativo
+            </div>
+            <div id="edu-rows"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Desempeño y adaptación por área
+          </div>
+          <div class="legend">
+            <span><span class="legend-dot" style="background:#2d5be3"></span>Desempeño (×10)</span>
+            <span><span class="legend-dot" style="background:#1a8a5a"></span>Adaptación %</span>
+          </div>
+          <div style="position:relative; height:220px;">
+            <canvas id="chart-area" role="img" aria-label="Desempeño y adaptación por área"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- EMPLEADOS -->
+      <div id="tab-empleados" class="section">
+        <div class="filters">
+          <select id="f-area" onchange="renderEmps()"><option value="">Todas las áreas</option></select>
+          <select id="f-edu" onchange="renderEmps()"><option value="">Cualquier educación</option></select>
+          <select id="f-sort" onchange="renderEmps()">
+            <option value="nombre">Ordenar: nombre</option>
+            <option value="desemp">Ordenar: desempeño</option>
+            <option value="cap">Ordenar: capacitaciones</option>
+            <option value="antig">Ordenar: antigüedad</option>
+          </select>
+          <input id="emp-search" placeholder="Buscar empleado..." oninput="renderEmps()" />
+        </div>
+        <div class="emp-grid" id="emp-grid"></div>
+      </div>
+
+      <!-- CAPACITACIÓN -->
+      <div id="tab-capacitacion" class="section">
+        <div class="metrics">
+          <div class="metric metric-accent">
+            <div class="metric-label">Total capacitaciones</div>
+            <div class="metric-value" id="cap-total">—</div>
+          </div>
+          <div class="metric metric-green">
+            <div class="metric-label">Mejor desempeño</div>
+            <div class="metric-value" id="cap-best">—</div>
+          </div>
+          <div class="metric metric-amber">
+            <div class="metric-label">Necesitan atención</div>
+            <div class="metric-value" id="cap-low">—</div>
+            <div class="metric-sub">desempeño &lt; 5</div>
+          </div>
+          <div class="metric metric-purple">
+            <div class="metric-label">Con posgrado</div>
+            <div class="metric-value" id="cap-pos">—</div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">Desempeño vs capacitaciones</div>
+            <div style="position:relative; height:220px;">
+              <canvas id="chart-scatter" role="img" aria-label="Dispersión desempeño vs capacitaciones"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Desempeño promedio por área</div>
+            <div style="position:relative; height:220px;">
+              <canvas id="chart-desemp" role="img" aria-label="Desempeño por área"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Ranking de desempeño</div>
+          <div id="ranking-list"></div>
+        </div>
+      </div>
+
+      <!-- SOFTWARE -->
+      <div id="tab-software" class="section">
+        <div class="metrics">
+          <div class="metric metric-green">
+            <div class="metric-label">Adaptación alta (&gt;60%)</div>
+            <div class="metric-value" id="sw-alto">—</div>
+          </div>
+          <div class="metric metric-amber">
+            <div class="metric-label">Adaptación media</div>
+            <div class="metric-value" id="sw-med">—</div>
+          </div>
+          <div class="metric" style="border-top:3px solid var(--red)">
+            <div class="metric-label">Adaptación baja (&lt;40%)</div>
+            <div class="metric-value" id="sw-bajo">—</div>
+          </div>
+          <div class="metric metric-purple">
+            <div class="metric-label">Promedio adaptación</div>
+            <div class="metric-value" id="sw-prom">—</div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">Distribución de niveles</div>
+            <div style="position:relative; height:200px;">
+              <canvas id="chart-sw-dist" role="img" aria-label="Distribución de adaptación al sistema"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Adaptación por área</div>
+            <div id="sw-area-bars"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Comentarios sobre el sistema</div>
+          <div id="feelings-list"></div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- MODAL -->
+<div class="modal-bg" id="modal" onclick="closeModal(event)">
+  <div class="modal" id="modal-inner">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0;">
+      <div class="modal-header" style="margin-bottom:0; flex:1;">
+        <div class="modal-avatar" id="m-avatar"></div>
+        <div>
+          <div style="font-size:17px; font-weight:700; color:var(--text);" id="m-nombre"></div>
+          <div style="font-size:12px; color:var(--text2); margin-top:2px;" id="m-area"></div>
+        </div>
+      </div>
+      <button class="btn" onclick="document.getElementById('modal').classList.remove('open')" style="flex-shrink:0;">✕ Cerrar</button>
+    </div>
+    <div class="detail-grid" id="m-details"></div>
+    <div style="font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.07em; margin-bottom:6px;">Sentimiento sobre el sistema</div>
+    <div class="feeling-box" id="m-feeling"></div>
+    <div class="gemini-box">
+      <div class="gemini-title">✦ Recomendación Gemini</div>
+      <div class="gemini-text" id="m-gemini"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let DATA = [];
+let charts = {};
+let cfgOpen = false;
+let sheetId = null;
+let ivId = null;
+let PAGE_TITLES = { resumen:'Resumen general', empleados:'Empleados', capacitacion:'Capacitación y desempeño', software:'Adopción del sistema' };
+
+const AREAS = ['Administración','Ventas','Logística','Marketing','Finanzas'];
+const EDU = ['Secundario incompleto','Secundario completo','Terciario/universitario en curso','Terciario/universitario completo','Posgrado/maestría'];
+const SW_LEVELS = ['0-20%','21-40%','41-60%','61-80%','81-100%'];
+
+function sw2num(s) { return {'0-20%':10,'21-40%':30,'41-60%':50,'61-80%':70,'81-100%':90}[s]||0; }
+function avg(arr) { return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
+function initials(n) { return (n||'').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase(); }
+function scoreColor(v) { return v>=8?'#1a8a5a':v>=5?'#e09000':'#c0392b'; }
+function adaptColor(s) { const n=sw2num(s); return n>=70?'#1a8a5a':n>=40?'#e09000':'#c0392b'; }
+function desempBadge(v) { const c=v>=8?'b-green':v>=5?'b-amber':'b-red'; return `<span class="badge ${c}">${v}/10</span>`; }
+function adaptBadge(s) { const n=sw2num(s); const c=n>=70?'b-green':n>=40?'b-amber':'b-red'; return `<span class="badge ${c}">${s}</span>`; }
+function eduShort(e) { return {'Secundario incompleto':'Sec. incompleto','Secundario completo':'Sec. completo','Terciario/universitario en curso':'Terc. en curso','Terciario/universitario completo':'Terc. completo','Posgrado/maestría':'Posgrado'}[e]||e; }
+function destroyChart(id) { if(charts[id]){charts[id].destroy();delete charts[id];} }
+
+const DEMO = [
+  {nombre:'Ana Gómez',antiguedad:5,area:'Administración',edu:'Terciario/universitario completo',caps:4,desemp:8,adap:'61-80%',sentimiento:'Me siento bastante cómoda, aunque algunos módulos son confusos.',gemini:'Reforzar capacitación en módulos de reportes. Alta motivación, potencial para ser referente del equipo.'},
+  {nombre:'Martín López',antiguedad:12,area:'Ventas',edu:'Secundario completo',caps:2,desemp:6,adap:'41-60%',sentimiento:'Es complicado pero voy entendiendo de a poco.',gemini:'Sesión individual de onboarding recomendada. Foco en funcionalidades de CRM del nuevo sistema.'},
+  {nombre:'Sofía Ruiz',antiguedad:3,area:'Logística',edu:'Terciario/universitario en curso',caps:6,desemp:9,adap:'81-100%',sentimiento:'Me gusta mucho el sistema, es muy intuitivo.',gemini:'Excelente adaptación. Puede liderar capacitación de pares en logística.'},
+  {nombre:'Diego Fernández',antiguedad:8,area:'Administración',edu:'Posgrado/maestría',caps:7,desemp:9,adap:'81-100%',sentimiento:'El sistema mejora mucho la productividad.',gemini:'Perfil avanzado. Involucrarlo en personalización del sistema para el área.'},
+  {nombre:'Laura Sosa',antiguedad:2,area:'Finanzas',edu:'Terciario/universitario completo',caps:3,desemp:7,adap:'61-80%',sentimiento:'Bien, aunque extraño algunas funciones del sistema anterior.',gemini:'Mostrar equivalencias entre sistema antiguo y nuevo. Buen nivel general.'},
+  {nombre:'Carlos Medina',antiguedad:15,area:'Marketing',edu:'Secundario completo',caps:1,desemp:5,adap:'21-40%',sentimiento:'Me cuesta mucho adaptarme, prefería el sistema anterior.',gemini:'Requiere acompañamiento intensivo. Dificultad vinculada a baja capacitación formal. Plan de 4 semanas recomendado.'},
+  {nombre:'Valeria Torres',antiguedad:6,area:'Ventas',edu:'Terciario/universitario en curso',caps:5,desemp:8,adap:'61-80%',sentimiento:'Voy bien, solo algunas dudas en reportes.',gemini:'Completar el módulo de reportes avanzados. Muy buen potencial.'},
+  {nombre:'Roberto Díaz',antiguedad:20,area:'Finanzas',edu:'Posgrado/maestría',caps:8,desemp:10,adap:'81-100%',sentimiento:'Excelente herramienta, muy superior al anterior.',gemini:'Perfil ideal. Candidato a embajador del sistema en toda la empresa.'},
+  {nombre:'Paula Ibáñez',antiguedad:1,area:'Logística',edu:'Secundario incompleto',caps:0,desemp:4,adap:'0-20%',sentimiento:'No entiendo nada, es muy difícil para mí.',gemini:'Prioridad urgente. Necesita capacitación desde nivel básico. Evaluar tutoría 1 a 1.'},
+  {nombre:'Hernán Perez',antiguedad:9,area:'Marketing',edu:'Terciario/universitario completo',caps:5,desemp:7,adap:'41-60%',sentimiento:'Entiendo la lógica pero me lleva más tiempo.',gemini:'Sesión de optimización de flujos de trabajo recomendada. Buen punto de partida.'},
+  {nombre:'Carla Suárez',antiguedad:4,area:'Administración',edu:'Secundario completo',caps:2,desemp:6,adap:'41-60%',sentimiento:'Regular, a veces se me traba el sistema.',gemini:'Verificar problemas técnicos reportados. Capacitación adicional en funciones del área.'},
+  {nombre:'Javier Morales',antiguedad:7,area:'Ventas',edu:'Terciario/universitario completo',caps:4,desemp:7,adap:'61-80%',sentimiento:'Bien en general, me acostumbré rápido.',gemini:'Reforzar módulo de seguimiento de clientes. Perfil estable con buen ritmo de adopción.'},
+];
+
+function showTab(id, btn) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+  document.getElementById('page-title').textContent = PAGE_TITLES[id];
+  if(id==='capacitacion') renderCapTab();
+  if(id==='software') renderSWTab();
+}
+
+function toggleConfig() { cfgOpen=!cfgOpen; document.getElementById('cfg').classList.toggle('open',cfgOpen); }
+
+function renderAll() {
+  renderMetrics();
+  renderAreaBars();
+  renderEduRows();
+  renderAreaChart();
+  renderEmps();
+  populateFilters();
+}
+
+function renderMetrics() {
+  document.getElementById('m-total').textContent = DATA.length;
+  document.getElementById('m-desemp').textContent = avg(DATA.map(r=>r.desemp)).toFixed(1);
+  document.getElementById('m-cap').textContent = avg(DATA.map(r=>r.caps)).toFixed(1);
+  document.getElementById('m-adap').textContent = Math.round(avg(DATA.map(r=>sw2num(r.adap))))+'%';
+}
+
+function renderAreaBars() {
+  const el = document.getElementById('area-bars');
+  const counts = {};
+  DATA.forEach(r=>{ counts[r.area]=(counts[r.area]||0)+1; });
+  const max = Math.max(...Object.values(counts),1);
+  el.innerHTML = AREAS.map(a=>{
+    const c=counts[a]||0;
+    return `<div class="bar-row"><span class="bar-label">${a}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(c/max*100)}%;"></div></div><span class="bar-val">${c}</span></div>`;
+  }).join('');
+}
+
+function renderEduRows() {
+  const el = document.getElementById('edu-rows');
+  const counts = {};
+  DATA.forEach(r=>{ counts[r.edu]=(counts[r.edu]||0)+1; });
+  el.innerHTML = EDU.map(e=>`<div class="edu-row"><span style="color:var(--text)">${eduShort(e)}</span><span class="badge b-blue">${counts[e]||0}</span></div>`).join('');
+}
+
+function renderAreaChart() {
+  const areas = AREAS.filter(a=>DATA.some(r=>r.area===a));
+  const desemp = areas.map(a=>parseFloat(avg(DATA.filter(r=>r.area===a).map(r=>r.desemp)).toFixed(1)));
+  const adapt = areas.map(a=>parseFloat(avg(DATA.filter(r=>r.area===a).map(r=>sw2num(r.adap))).toFixed(1)));
+  destroyChart('chart-area');
+  charts['chart-area'] = new Chart(document.getElementById('chart-area'),{
+    type:'bar',
+    data:{labels:areas.map(a=>a.slice(0,6)),datasets:[
+      {label:'Desempeño (×10)',data:desemp.map(v=>v*10),backgroundColor:'#2d5be3',borderRadius:4},
+      {label:'Adaptación %',data:adapt,backgroundColor:'#1a8a5a',borderRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{max:100,ticks:{callback:v=>v+'%'},grid:{color:'rgba(0,0,0,.05)'}},x:{grid:{display:false}}}}
+  });
+}
+
+function populateFilters() {
+  const fa=document.getElementById('f-area');
+  const areas=[...new Set(DATA.map(r=>r.area))].sort();
+  fa.innerHTML='<option value="">Todas las áreas</option>'+areas.map(a=>`<option value="${a}">${a}</option>`).join('');
+  const fe=document.getElementById('f-edu');
+  fe.innerHTML='<option value="">Cualquier educación</option>'+EDU.map(e=>`<option value="${e}">${eduShort(e)}</option>`).join('');
+}
+
+function renderEmps() {
+  let d=[...DATA];
+  const fa=document.getElementById('f-area').value;
+  const fe=document.getElementById('f-edu').value;
+  const fs=document.getElementById('f-sort').value;
+  const sq=(document.getElementById('emp-search').value||'').toLowerCase();
+  if(fa) d=d.filter(r=>r.area===fa);
+  if(fe) d=d.filter(r=>r.edu===fe);
+  if(sq) d=d.filter(r=>r.nombre.toLowerCase().includes(sq));
+  d.sort((a,b)=>{
+    if(fs==='desemp') return b.desemp-a.desemp;
+    if(fs==='cap') return b.caps-a.caps;
+    if(fs==='antig') return b.antiguedad-a.antiguedad;
+    return a.nombre.localeCompare(b.nombre);
+  });
+  document.getElementById('emp-grid').innerHTML = d.map(r=>`
+    <div class="emp-card" onclick="openModal(${DATA.indexOf(r)})">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div class="avatar">${initials(r.nombre)}</div>
+        <div style="min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.nombre}</div>
+          <div style="font-size:11px;color:var(--text2);">${r.area} · ${r.antiguedad}a antigüedad</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;">${desempBadge(r.desemp)} ${adaptBadge(r.adap)}</div>
+      <div class="score-bar-wrap"><div class="score-bar" style="width:${r.desemp*10}%;background:${scoreColor(r.desemp)};"></div></div>
+      <div style="font-size:11px;color:var(--text3);">${r.caps} capacitaciones · ${eduShort(r.edu)}</div>
+    </div>`).join('');
+}
+
+function openModal(idx) {
+  const r=DATA[idx];
+  document.getElementById('m-avatar').textContent=initials(r.nombre);
+  document.getElementById('m-nombre').textContent=r.nombre;
+  document.getElementById('m-area').textContent=`${r.area} · ${r.antiguedad} años de antigüedad`;
+  document.getElementById('m-details').innerHTML=`
+    <div class="detail-item"><div class="detail-label">Desempeño</div><div class="detail-value">${r.desemp}/10 ${desempBadge(r.desemp)}</div></div>
+    <div class="detail-item"><div class="detail-label">Adaptación al sistema</div><div class="detail-value">${adaptBadge(r.adap)}</div></div>
+    <div class="detail-item"><div class="detail-label">Capacitaciones</div><div class="detail-value">${r.caps}</div></div>
+    <div class="detail-item"><div class="detail-label">Nivel educativo</div><div class="detail-value" style="font-size:12px;">${r.edu}</div></div>`;
+  document.getElementById('m-feeling').textContent='"'+r.sentimiento+'"';
+  document.getElementById('m-gemini').textContent=r.gemini;
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal(e) { if(e.target===document.getElementById('modal')) document.getElementById('modal').classList.remove('open'); }
+
+function renderCapTab() {
+  const d=DATA;
+  document.getElementById('cap-total').textContent=d.reduce((s,r)=>s+r.caps,0);
+  document.getElementById('cap-best').textContent=Math.max(...d.map(r=>r.desemp))+'/10';
+  document.getElementById('cap-low').textContent=d.filter(r=>r.desemp<5).length;
+  document.getElementById('cap-pos').textContent=d.filter(r=>r.edu==='Posgrado/maestría').length;
+
+  destroyChart('chart-scatter');
+  charts['chart-scatter']=new Chart(document.getElementById('chart-scatter'),{
+    type:'scatter',
+    data:{datasets:[{label:'Empleados',data:d.map(r=>({x:r.caps,y:r.desemp})),backgroundColor:'#2d5be3',pointRadius:7}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'Capacitaciones'},ticks:{stepSize:1},grid:{color:'rgba(0,0,0,.05)'}},y:{title:{display:true,text:'Desempeño'},min:0,max:10,grid:{color:'rgba(0,0,0,.05)'}}}}
+  });
+
+  const areas=AREAS.filter(a=>d.some(r=>r.area===a));
+  destroyChart('chart-desemp');
+  charts['chart-desemp']=new Chart(document.getElementById('chart-desemp'),{
+    type:'bar',
+    data:{labels:areas.map(a=>a.slice(0,6)),datasets:[{data:areas.map(a=>parseFloat(avg(d.filter(r=>r.area===a).map(r=>r.desemp)).toFixed(1))),backgroundColor:['#2d5be3','#1a8a5a','#e09000','#5a3fb5','#c0392b'],borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:0,max:10,grid:{color:'rgba(0,0,0,.05)'}},x:{grid:{display:false}}}}
+  });
+
+  const sorted=[...d].sort((a,b)=>b.desemp-a.desemp);
+  document.getElementById('ranking-list').innerHTML=sorted.map((r,i)=>`
+    <div class="rank-row">
+      <span class="rank-num">${i+1}</span>
+      <div class="rank-avatar">${initials(r.nombre)}</div>
+      <span style="flex:1;font-weight:500;">${r.nombre}</span>
+      <span style="font-size:12px;color:var(--text2);margin-right:10px;">${r.area}</span>
+      ${desempBadge(r.desemp)}
+    </div>`).join('');
+}
+
+function renderSWTab() {
+  const d=DATA;
+  const alto=d.filter(r=>sw2num(r.adap)>=70).length;
+  const med=d.filter(r=>sw2num(r.adap)>=40&&sw2num(r.adap)<70).length;
+  const bajo=d.filter(r=>sw2num(r.adap)<40).length;
+  document.getElementById('sw-alto').textContent=alto;
+  document.getElementById('sw-med').textContent=med;
+  document.getElementById('sw-bajo').textContent=bajo;
+  document.getElementById('sw-prom').textContent=Math.round(avg(d.map(r=>sw2num(r.adap))))+'%';
+
+  const counts={};
+  SW_LEVELS.forEach(l=>{counts[l]=d.filter(r=>r.adap===l).length;});
+  destroyChart('chart-sw-dist');
+  charts['chart-sw-dist']=new Chart(document.getElementById('chart-sw-dist'),{
+    type:'doughnut',
+    data:{labels:SW_LEVELS,datasets:[{data:SW_LEVELS.map(l=>counts[l]||0),backgroundColor:['#c0392b','#e09000','#FAC775','#1a8a5a','#085041'],borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:10,padding:8}}}}
+  });
+
+  const areas=AREAS.filter(a=>d.some(r=>r.area===a));
+  const maxA=Math.max(...areas.map(a=>avg(d.filter(r=>r.area===a).map(r=>sw2num(r.adap)))),1);
+  document.getElementById('sw-area-bars').innerHTML=areas.map(a=>{
+    const v=Math.round(avg(d.filter(r=>r.area===a).map(r=>sw2num(r.adap))));
+    const col=v>=70?'#1a8a5a':v>=40?'#e09000':'#c0392b';
+    return `<div class="bar-row"><span class="bar-label">${a}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(v/maxA*100)}%;background:${col};"></div></div><span class="bar-val">${v}%</span></div>`;
+  }).join('');
+
+  document.getElementById('feelings-list').innerHTML=d.map(r=>`
+    <div class="feeling-row">
+      <div class="feeling-meta">
+        <strong style="font-size:13px;">${r.nombre}</strong>
+        <span style="font-size:12px;color:var(--text2);">${r.area}</span>
+        ${adaptBadge(r.adap)}
+      </div>
+      <div style="font-size:13px;color:var(--text2);font-style:italic;">"${r.sentimiento}"</div>
+    </div>`).join('');
+}
+
+function parseCSV(text) {
+  const lines=text.trim().split('\n');
+  if(lines.length<2) return [];
+  const headers=lines[0].split(',').map(h=>h.replace(/^"|"$/g,'').trim().toLowerCase());
+  const get=(obj,keys)=>{ for(const k of keys){const i=headers.findIndex(h=>h.includes(k));if(i>=0&&obj[i]!=null)return obj[i].replace(/^"|"$/g,'').trim();} return ''; };
+  return lines.slice(1).filter(l=>l.trim()).map(line=>{
+    const cols=line.match(/(".*?"|[^,]+|(?<=,)(?=,)|(?<=,)$|^(?=,))/g)||line.split(',');
+    return {
+      nombre:get(cols,['nombre','name','apellido']),
+      antiguedad:parseInt(get(cols,['antigüedad','antiguedad','antig']))||0,
+      area:get(cols,['área','area','departamento']),
+      edu:get(cols,['nivel educativo','educacion','educación','edu']),
+      caps:parseInt(get(cols,['capacitaciones','capac']))||0,
+      desemp:parseFloat(get(cols,['desempeño','desempeno','nota','evaluacion']))||0,
+      adap:get(cols,['adaptación','adaptacion','sistema']),
+      sentimiento:get(cols,['sentimiento','siente','feeling']),
+      gemini:get(cols,['gemini','recomendacion','recomendación','plan'])
+    };
+  }).filter(r=>r.nombre);
+}
+
+async function connectSheet() {
+  const url=document.getElementById('sheet-url').value.trim();
+  const err=document.getElementById('url-err');
+  err.style.display='none';
+  if(!url.includes('docs.google.com')&&!url.includes('output=csv')){ err.textContent='Usá la URL de publicación CSV (Archivo → Publicar en la web → CSV).'; err.style.display='block'; return; }
+  try {
+    const res=await fetch(url);
+    if(!res.ok) throw new Error();
+    const text=await res.text();
+    DATA=parseCSV(text);
+    if(!DATA.length) throw new Error('sin datos');
+    renderAll();
+    if(cfgOpen) toggleConfig();
+    document.getElementById('sync-lbl').textContent='Actualizado '+new Date().toLocaleTimeString('es-AR');
+    clearInterval(ivId);
+    ivId=setInterval(async()=>{
+      try{const r=await fetch(url);const t=await r.text();DATA=parseCSV(t);renderAll();document.getElementById('sync-lbl').textContent='Actualizado '+new Date().toLocaleTimeString('es-AR');}catch(e){}
+    },10000);
+  } catch(e) { err.textContent='No se pudo cargar. Verificá que la URL sea la de publicación CSV y que la hoja esté publicada.'; err.style.display='block'; }
+}
+
+function loadDemo() {
+  DATA=DEMO;
+  renderAll();
+  clearInterval(ivId);
+  document.getElementById('sync-lbl').textContent='Datos de ejemplo · auto-actualización off';
+}
+
+loadDemo();
+</script>
+</body>
+</html>
