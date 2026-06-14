@@ -626,25 +626,76 @@ function renderSWTab() {
     </div>`).join('');
 }
 
+function parseCSVLine(line) {
+  // Parsea una línea CSV respetando campos entre comillas que pueden contener comas
+  const result = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i+1] === '"') { cur += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if (ch === ',' && !inQuotes) {
+      result.push(cur.trim()); cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
 function parseCSV(text) {
-  const lines=text.trim().split('\n');
-  if(lines.length<2) return [];
-  const headers=lines[0].split(',').map(h=>h.replace(/^"|"$/g,'').trim().toLowerCase());
-  const get=(obj,keys)=>{ for(const k of keys){const i=headers.findIndex(h=>h.includes(k));if(i>=0&&obj[i]!=null)return obj[i].replace(/^"|"$/g,'').trim();} return ''; };
-  return lines.slice(1).filter(l=>l.trim()).map(line=>{
-    const cols=line.match(/(".*?"|[^,]+|(?<=,)(?=,)|(?<=,)$|^(?=,))/g)||line.split(',');
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+  const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().trim());
+
+  // Mapeo exacto a los nombres de columna reales de la hoja
+  const COL = {
+    nombre:      ['apellido y nombre'],
+    antiguedad:  ['¿cuántos años de antigüedad tienes en la empresa?', 'cuántos años de antigüedad', 'antiguedad', 'antigüedad'],
+    area:        ['¿a qué aréa o departamento perteneces actualmente?', 'área o departamento', 'area', 'área', 'departamento'],
+    edu:         ['¿cuál es tu máximo nivel educativo alcanzado?', 'nivel educativo', 'educacion', 'educación'],
+    caps:        ['¿cuántas capacitaciones formales o cursos has realizado en los ultimos 10 años?', 'capacitaciones formales', 'capacitaciones', 'cursos'],
+    desemp:      ['en tu última evaluación de desempeño, ¿qué calificación obtuviste?', 'calificación', 'evaluacion', 'desempeño', 'desempeno'],
+    adap:        ['¿en qué porcentaje dirías que has adoptado y utilizado el nuevo sistema de gestión en tus tareas diarias?', 'porcentaje', 'adoptado', 'sistema'],
+    sentimiento: ['en simples palabras, ¿cómo te sientes ante el cambio en el nuevo sistema?', 'cómo te sientes', 'sentimiento', 'sientes'],
+    gemini:      ['devolución ia (rrhh)', 'devolucion ia', 'devolución ia', 'gemini', 'recomendacion', 'plan']
+  };
+
+  function getIdx(keys) {
+    for (const k of keys) {
+      const i = headers.findIndex(h => h.includes(k));
+      if (i >= 0) return i;
+    }
+    return -1;
+  }
+
+  const idx = {};
+  for (const [field, keys] of Object.entries(COL)) idx[field] = getIdx(keys);
+
+  function val(cols, field) {
+    const i = idx[field];
+    return (i >= 0 && cols[i] != null) ? cols[i].replace(/^"|"$/g,'').trim() : '';
+  }
+
+  return lines.slice(1).filter(l => l.trim()).map(line => {
+    const cols = parseCSVLine(line);
+    const nombre = val(cols, 'nombre');
+    if (!nombre) return null;
     return {
-      nombre:get(cols,['nombre','name','apellido']),
-      antiguedad:parseInt(get(cols,['antigüedad','antiguedad','antig']))||0,
-      area:get(cols,['área','area','departamento']),
-      edu:get(cols,['nivel educativo','educacion','educación','edu']),
-      caps:parseInt(get(cols,['capacitaciones','capac']))||0,
-      desemp:parseFloat(get(cols,['desempeño','desempeno','nota','evaluacion']))||0,
-      adap:get(cols,['adaptación','adaptacion','sistema']),
-      sentimiento:get(cols,['sentimiento','siente','feeling']),
-      gemini:get(cols,['gemini','recomendacion','recomendación','plan'])
+      nombre,
+      antiguedad: parseInt(val(cols,'antiguedad')) || 0,
+      area:       val(cols,'area'),
+      edu:        val(cols,'edu'),
+      caps:       parseInt(val(cols,'caps')) || 0,
+      desemp:     parseFloat(val(cols,'desemp')) || 0,
+      adap:       val(cols,'adap'),
+      sentimiento:val(cols,'sentimiento'),
+      gemini:     val(cols,'gemini')
     };
-  }).filter(r=>r.nombre);
+  }).filter(r => r && r.nombre);
 }
 
 async function connectSheet() {
