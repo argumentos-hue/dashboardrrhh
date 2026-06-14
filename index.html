@@ -626,42 +626,58 @@ function renderSWTab() {
     </div>`).join('');
 }
 
-function parseCSVLine(line) {
-  // Parsea una línea CSV respetando campos entre comillas que pueden contener comas
-  const result = [];
+function parseCSV(text) {
+  // Parser robusto: maneja saltos de linea dentro de celdas (respuestas de Gemini)
+  // y columna extra de timestamp que Google Forms agrega automaticamente
+  const rows = [];
   let cur = '';
   let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
     if (ch === '"') {
-      if (inQuotes && line[i+1] === '"') { cur += '"'; i++; }
+      if (inQuotes && text[i+1] === '"') { cur += '"'; i++; }
       else inQuotes = !inQuotes;
-    } else if (ch === ',' && !inQuotes) {
-      result.push(cur.trim()); cur = '';
+    } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+      if (ch === '\r' && text[i+1] === '\n') i++;
+      if (cur.trim()) rows.push(cur);
+      cur = '';
     } else {
       cur += ch;
     }
   }
-  result.push(cur.trim());
-  return result;
-}
+  if (cur.trim()) rows.push(cur);
+  if (rows.length < 2) return [];
 
-function parseCSV(text) {
-  const lines = text.trim().split('\n');
-  if (lines.length < 2) return [];
-  const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().trim());
+  function splitRow(row) {
+    const cols = [];
+    let field = '';
+    let inQ = false;
+    for (let i = 0; i < row.length; i++) {
+      const c = row[i];
+      if (c === '"') {
+        if (inQ && row[i+1] === '"') { field += '"'; i++; }
+        else inQ = !inQ;
+      } else if (c === ',' && !inQ) {
+        cols.push(field.trim()); field = '';
+      } else { field += c; }
+    }
+    cols.push(field.trim());
+    return cols;
+  }
 
-  // Mapeo exacto a los nombres de columna reales de la hoja
+  const headers = splitRow(rows[0]).map(h => h.toLowerCase().trim());
+
+  // Mapeo de campos — busca coincidencia parcial en el encabezado
   const COL = {
     nombre:      ['apellido y nombre'],
-    antiguedad:  ['¿cuántos años de antigüedad tienes en la empresa?', 'cuántos años de antigüedad', 'antiguedad', 'antigüedad'],
-    area:        ['¿a qué aréa o departamento perteneces actualmente?', 'área o departamento', 'area', 'área', 'departamento'],
-    edu:         ['¿cuál es tu máximo nivel educativo alcanzado?', 'nivel educativo', 'educacion', 'educación'],
-    caps:        ['¿cuántas capacitaciones formales o cursos has realizado en los ultimos 10 años?', 'capacitaciones formales', 'capacitaciones', 'cursos'],
-    desemp:      ['en tu última evaluación de desempeño, ¿qué calificación obtuviste?', 'calificación', 'evaluacion', 'desempeño', 'desempeno'],
-    adap:        ['¿en qué porcentaje dirías que has adoptado y utilizado el nuevo sistema de gestión en tus tareas diarias?', 'porcentaje', 'adoptado', 'sistema'],
-    sentimiento: ['en simples palabras, ¿cómo te sientes ante el cambio en el nuevo sistema?', 'cómo te sientes', 'sentimiento', 'sientes'],
-    gemini:      ['devolución ia (rrhh)', 'devolucion ia', 'devolución ia', 'gemini', 'recomendacion', 'plan']
+    antiguedad:  ['antigüedad', 'antiguedad', 'años de antigüedad'],
+    area:        ['área', 'area', 'departamento'],
+    edu:         ['nivel educativo', 'educación', 'educacion', 'máximo nivel'],
+    caps:        ['capacitaciones', 'cursos'],
+    desemp:      ['calificación', 'evaluación', 'evaluacion', 'desempeño', 'desempeno'],
+    adap:        ['porcentaje', 'adoptado', 'utilizado el nuevo sistema'],
+    sentimiento: ['cómo te sientes', 'como te sientes', 'simples palabras'],
+    gemini:      ['devolución ia', 'devolucion ia', 'ia (rrhh)']
   };
 
   function getIdx(keys) {
@@ -680,20 +696,20 @@ function parseCSV(text) {
     return (i >= 0 && cols[i] != null) ? cols[i].replace(/^"|"$/g,'').trim() : '';
   }
 
-  return lines.slice(1).filter(l => l.trim()).map(line => {
-    const cols = parseCSVLine(line);
+  return rows.slice(1).map(row => {
+    const cols = splitRow(row);
     const nombre = val(cols, 'nombre');
     if (!nombre) return null;
     return {
       nombre,
-      antiguedad: parseInt(val(cols,'antiguedad')) || 0,
-      area:       val(cols,'area'),
-      edu:        val(cols,'edu'),
-      caps:       parseInt(val(cols,'caps')) || 0,
-      desemp:     parseFloat(val(cols,'desemp')) || 0,
-      adap:       val(cols,'adap'),
-      sentimiento:val(cols,'sentimiento'),
-      gemini:     val(cols,'gemini')
+      antiguedad:  parseInt(val(cols,'antiguedad'))  || 0,
+      area:        val(cols,'area'),
+      edu:         val(cols,'edu'),
+      caps:        parseInt(val(cols,'caps'))         || 0,
+      desemp:      parseFloat(val(cols,'desemp'))     || 0,
+      adap:        val(cols,'adap'),
+      sentimiento: val(cols,'sentimiento'),
+      gemini:      val(cols,'gemini')
     };
   }).filter(r => r && r.nombre);
 }
